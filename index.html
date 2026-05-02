@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="CopyMe — пиксель-арт головоломка для детей. Скопируй рисунок пиксель за пикселем!">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>CopyMe — Скопируй рисунок!</title>
+
+    <!-- Pixel Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- PWA & Icons -->
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <link rel="manifest" href="manifest.json">
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- ===== SPLASH SCREEN ===== -->
+        <div id="screen-splash" class="screen active">
+            <div class="splash-container">
+                <div class="splash-logo">
+                    <span class="logo-copy">COPY</span><span class="logo-me">ME</span>
+                </div>
+                <div class="splash-subtitle" data-i18n="splash.subtitle">Скопируй рисунок!</div>
+                <div class="splash-pixel-art" id="splash-demo"></div>
+                <button class="btn btn-primary btn-glow" id="btn-start" data-i18n="splash.play">
+                    ▶ ИГРАТЬ
+                </button>
+                <div class="splash-lang">
+                    <button class="btn-lang active" data-lang="ru">RU</button>
+                    <button class="btn-lang" data-lang="en">EN</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== LEVEL SELECT SCREEN ===== -->
+        <div id="screen-levels" class="screen">
+            <div class="screen-header">
+                <button class="btn-icon" id="btn-back-home" aria-label="Back">◀</button>
+                <h1 class="screen-title" data-i18n="levels.title">Уровни</h1>
+                <div class="header-stars">
+                    <span class="star-icon">⭐</span>
+                    <span id="total-stars">0</span>
+                </div>
+            </div>
+            <div class="pack-tabs" id="pack-tabs"></div>
+            <div class="levels-grid" id="levels-grid"></div>
+        </div>
+
+        <!-- ===== GAME SCREEN ===== -->
+        <div id="screen-game" class="screen">
+            <!-- Top bar -->
+            <div class="game-header">
+                <button class="btn-icon" id="btn-back-levels" aria-label="Back">◀</button>
+                <div class="game-info">
+                    <span class="game-level-name" id="game-level-name"></span>
+                    <span class="game-timer" id="game-timer" style="display:none">⏱ <span id="timer-value">00:00</span></span>
+                </div>
+                <div class="mode-badge-wrap">
+                    <span class="mode-badge" id="mode-badge" style="display:none"></span>
+                </div>
+                <div class="game-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <span class="progress-text" id="progress-text">0%</span>
+                </div>
+            </div>
+
+            <!-- Canvases -->
+            <div class="game-canvases" id="game-canvases">
+                <div class="canvas-section">
+                    <div class="canvas-label" data-i18n="game.original">ОРИГИНАЛ</div>
+                    <div class="canvas-wrapper" id="original-wrapper">
+                        <canvas id="canvas-original"></canvas>
+                        <!-- Memory mode countdown overlay -->
+                        <div class="memory-countdown" id="memory-countdown" style="display:none">
+                            <span class="countdown-number">10</span>
+                            <span class="countdown-label" data-i18n="game.memorize">Запоминай!</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="canvas-section">
+                    <div class="canvas-label" data-i18n="game.canvas">ХОЛСТ</div>
+                    <div class="canvas-wrapper" id="player-wrapper">
+                        <canvas id="canvas-player"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Palette -->
+            <div class="palette-container" id="palette-container">
+                <div class="palette-scroll" id="palette-scroll"></div>
+            </div>
+
+            <!-- Tools -->
+            <div class="tools-bar" id="tools-bar">
+                <button class="tool-btn active" data-tool="pencil" title="Карандаш" id="tool-pencil">
+                    <span class="tool-icon">✏️</span>
+                </button>
+                <button class="tool-btn" data-tool="fill" title="Заливка" id="tool-fill">
+                    <span class="tool-icon">🪣</span>
+                </button>
+                <button class="tool-btn" data-tool="eraser" title="Ластик" id="tool-eraser">
+                    <span class="tool-icon">🧽</span>
+                </button>
+                <button class="tool-btn" data-tool="eyedropper" title="Пипетка" id="tool-eyedropper">
+                    <span class="tool-icon">💧</span>
+                </button>
+                <button class="tool-btn" data-tool="undo" title="Отмена" id="tool-undo">
+                    <span class="tool-icon">↩️</span>
+                </button>
+                <div class="tool-separator"></div>
+                <button class="tool-btn" data-tool="hint" title="Подсказка" id="tool-hint">
+                    <span class="tool-icon">💡</span>
+                </button>
+                <button class="btn btn-success btn-check" id="btn-check" data-i18n="game.check">
+                    ✓ Готово!
+                </button>
+            </div>
+        </div>
+
+        <!-- ===== MODE SELECTOR MODAL ===== -->
+        <div id="modal-mode" class="modal">
+            <div class="modal-content mode-content">
+                <div class="mode-header">
+                    <h2 class="mode-selector-title" id="mode-selector-title"></h2>
+                    <button class="btn-icon mode-close" id="mode-close" aria-label="Close">✕</button>
+                </div>
+                <div class="mode-subtitle" data-i18n="modes.choose">Выбери режим:</div>
+                <div class="mode-selector-grid" id="mode-selector-grid"></div>
+            </div>
+        </div>
+
+        <!-- ===== RESULT MODAL ===== -->
+        <div id="modal-result" class="modal">
+            <div class="modal-content result-content">
+                <div class="result-stars" id="result-stars"></div>
+                <div class="result-title" id="result-title"></div>
+                <div class="result-stats" id="result-stats"></div>
+                <div class="result-buttons">
+                    <button class="btn btn-secondary" id="btn-retry" data-i18n="result.retry">🔄 Ещё раз</button>
+                    <button class="btn btn-primary" id="btn-next" data-i18n="result.next">▶ Далее</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Particles container -->
+        <div id="particles-container"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/i18n.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/effects.js"></script>
+    <script src="js/levels.js"></script>
+    <script src="js/canvas-renderer.js"></script>
+    <script src="js/palette.js"></script>
+    <script src="js/tools.js"></script>
+    <script src="js/scoring.js"></script>
+    <script src="js/modes.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/level-select.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
