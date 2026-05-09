@@ -27,11 +27,18 @@ const Game = (() => {
 
         currentLevel = level;
         gridSize = level.size;
-        originalGrid = level.grid;
         palette = Levels.getPalette(level.pack);
         hintsUsed = 0;
         startTime = Date.now();
         isPlaying = true;
+
+        // In mirror mode, force the reference to be symmetrical
+        // so the player can actually reproduce it by drawing the left half
+        if (activeMode === 'mirror') {
+            originalGrid = Modes.applyMirror(level.grid, level.size);
+        } else {
+            originalGrid = level.grid;
+        }
 
         // Stop any previous timers
         Modes.stopTimer();

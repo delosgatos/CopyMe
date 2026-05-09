@@ -18,29 +18,101 @@
     <link rel="apple-touch-icon" href="favicon.png">
     <link rel="manifest" href="manifest.json">
 
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=18">
 </head>
 <body>
     <div id="app">
         <!-- ===== SPLASH SCREEN ===== -->
         <div id="screen-splash" class="screen active">
+            <canvas id="splash-particles" class="splash-particles-canvas"></canvas>
             <div class="splash-container">
                 <div class="splash-logo">
-                    <span class="logo-copy">COPY</span><span class="logo-me">ME</span>
+                    <span class="logo-copy splash-anim" style="--delay: 0">COPY</span><span class="logo-me splash-anim" style="--delay: 1">ME</span>
                 </div>
                 <div class="splash-subtitle" data-i18n="splash.subtitle">Скопируй рисунок!</div>
                 <div class="splash-pixel-art" id="splash-demo"></div>
-                <button class="btn btn-primary btn-glow" id="btn-start" data-i18n="splash.play">
-                    ▶ ИГРАТЬ
-                </button>
-                <div class="splash-lang">
+
+                <!-- Daily Challenge -->
+                <div class="daily-challenge-card" id="daily-challenge-card">
+                    <div class="daily-left">
+                        <span class="daily-icon">🗓</span>
+                        <div class="daily-info">
+                            <span class="daily-title" id="daily-title">Ежедневный вызов</span>
+                            <span class="daily-timer" id="daily-timer"></span>
+                        </div>
+                    </div>
+                    <div class="daily-right">
+                        <span class="daily-streak" id="daily-streak">🔥 0</span>
+                        <span class="daily-status" id="daily-status">▶</span>
+                    </div>
+                </div>
+
+                <!-- Game Type Selector -->
+                <div class="game-type-selector" id="game-type-selector">
+                    <button class="game-type-card" id="btn-type-draw" data-type="draw">
+                        <span class="game-type-icon">🎨</span>
+                        <span class="game-type-name" data-i18n="type.draw">Рисовалка</span>
+                        <span class="game-type-desc" data-i18n="type.draw.desc">Скопируй рисунок</span>
+                    </button>
+                    <button class="game-type-card" id="btn-type-escape" data-type="escape">
+                        <span class="game-type-icon">🏃</span>
+                        <span class="game-type-name" data-i18n="type.escape">Побег</span>
+                        <span class="game-type-desc" data-i18n="type.escape.desc">Нарисуй путь!</span>
+                    </button>
+                    <button class="game-type-card" id="btn-type-live" data-type="live">
+                        <span class="game-type-icon">⚡</span>
+                        <span class="game-type-name" data-i18n="type.live">Выживание</span>
+                        <span class="game-type-desc" data-i18n="type.live.desc">Рисуй на ходу!</span>
+                    </button>
+                    <button class="game-type-card game-type-endless" id="btn-type-endless" data-type="endless">
+                        <span class="game-type-icon">♾️</span>
+                        <span class="game-type-name" data-i18n="type.endless">Бесконечный</span>
+                        <span class="game-type-desc"><span id="endless-highscore">🏆 0</span></span>
+                    </button>
+                </div>
+
+                <!-- XP Progress Bar -->
+                <div class="xp-bar-container" id="xp-bar-container">
+                    <div class="xp-level-name" id="xp-level-name">🐱 Котёнок</div>
+                    <div class="xp-bar-track">
+                        <div class="xp-bar-fill" id="xp-bar-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="xp-bar-label" id="xp-bar-label">0 XP</div>
+                </div>
+
+                <!-- Skin Selector -->
+                <div class="skin-selector" id="skin-selector"></div>
+
+                <div class="splash-controls" style="display: flex; gap: 8px; margin-top: 8px;">
                     <button class="btn-lang active" data-lang="ru">RU</button>
                     <button class="btn-lang" data-lang="en">EN</button>
+                    <button class="btn-lang" id="btn-toggle-music">🎵</button>
+                    <button class="btn-achievements" id="btn-achievements">🏅</button>
+                    <button class="btn-achievements" id="btn-stats" style="border-color: #22c55e; color: #22c55e;">📊</button>
                 </div>
             </div>
         </div>
 
-        <!-- ===== LEVEL SELECT SCREEN ===== -->
+        <!-- Achievements Modal -->
+        <div class="modal" id="modal-achievements">
+            <div class="modal-content" style="max-width: 420px;">
+                <h2 style="font-family: var(--font-pixel); font-size: 0.7rem; color: #a855f7; text-align: center; margin-bottom: 4px;">🏅</h2>
+                <div class="achievement-counter" id="achievement-counter"></div>
+                <div class="achievements-grid" id="achievements-grid"></div>
+                <button class="btn btn-primary" id="btn-close-achievements" style="margin-top: 12px; width: 100%;">OK</button>
+            </div>
+        </div>
+
+        <!-- Stats Modal -->
+        <div class="modal" id="modal-stats">
+            <div class="modal-content" style="max-width: 420px;">
+                <h2 style="font-family: var(--font-pixel); font-size: 0.7rem; color: #22c55e; text-align: center; margin-bottom: 8px;">📊</h2>
+                <div class="stats-content" id="stats-content"></div>
+                <button class="btn btn-primary" id="btn-close-stats" style="margin-top: 12px; width: 100%;">OK</button>
+            </div>
+        </div>
+
+        <!-- ===== LEVEL SELECT SCREEN (Draw) ===== -->
         <div id="screen-levels" class="screen">
             <div class="screen-header">
                 <button class="btn-icon" id="btn-back-home" aria-label="Back">◀</button>
@@ -54,7 +126,7 @@
             <div class="levels-grid" id="levels-grid"></div>
         </div>
 
-        <!-- ===== GAME SCREEN ===== -->
+        <!-- ===== GAME SCREEN (Draw) ===== -->
         <div id="screen-game" class="screen">
             <!-- Top bar -->
             <div class="game-header">
@@ -127,6 +199,71 @@
             </div>
         </div>
 
+        <!-- ===== ESCAPE LEVEL SELECT ===== -->
+        <div id="screen-escape-levels" class="screen">
+            <div class="screen-header escape-header">
+                <button class="btn-icon" id="btn-back-home-escape" aria-label="Back">◀</button>
+                <h1 class="screen-title"><span class="escape-title-icon">🏃</span> <span data-i18n="escape.title">Побег</span></h1>
+                <div class="header-stars">
+                    <span class="star-icon">⭐</span>
+                    <span id="escape-total-stars">0</span>
+                </div>
+            </div>
+            <div class="escape-levels-grid" id="escape-levels-grid"></div>
+        </div>
+
+        <!-- ===== LIVE SELECT SCREEN ===== -->
+        <div id="screen-live-levels" class="screen">
+            <div class="screen-header">
+                <button class="btn-icon" id="btn-back-live-home" aria-label="Back">◀</button>
+                <h1 class="screen-title" data-i18n="type.live">Выживание</h1>
+                <div class="header-stars">
+                    ⭐ <span id="live-total-stars">0</span>
+                </div>
+            </div>
+            <div class="escape-levels-container" id="live-levels-grid">
+                <!-- Live Levels generated here -->
+            </div>
+        </div>
+
+        <!-- ===== ESCAPE/LIVE GAME SCREEN ===== -->
+        <div id="screen-escape-game" class="screen">
+            <div class="game-header escape-game-header">
+                <button class="btn-icon" id="btn-back-escape-levels" aria-label="Back">◀</button>
+                <div class="header-center">
+                    <h2 class="escape-level-name" id="escape-level-name">Уровень</h2>
+                    <span id="escape-phase" class="escape-phase-indicator">✏️</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-icon" id="btn-music-ingame" aria-label="Toggle Music">🎵</button>
+                    <div class="escape-stats">
+                        <span id="escape-lives">❤️❤️❤️</span>
+                        <span id="escape-coins">🪙 0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Single canvas for maze -->
+            <div class="escape-canvas-area">
+                <div class="canvas-wrapper escape-canvas-wrapper" id="escape-canvas-wrapper">
+                    <canvas id="escape-canvas"></canvas>
+                </div>
+            </div>
+
+            <!-- Escape tools -->
+            <div class="escape-tools-bar">
+                <button class="btn btn-primary escape-btn-start" id="escape-btn-start">
+                    ▶ <span data-i18n="escape.start">СТАРТ!</span>
+                </button>
+                <button class="btn btn-secondary escape-btn-undo" id="escape-btn-undo">
+                    ↩️
+                </button>
+                <button class="btn btn-secondary escape-btn-clear" id="escape-btn-clear">
+                    🗑 <span data-i18n="escape.clear">Стереть</span>
+                </button>
+            </div>
+        </div>
+
         <!-- ===== MODE SELECTOR MODAL ===== -->
         <div id="modal-mode" class="modal">
             <div class="modal-content mode-content">
@@ -139,7 +276,7 @@
             </div>
         </div>
 
-        <!-- ===== RESULT MODAL ===== -->
+        <!-- ===== RESULT MODAL (Draw) ===== -->
         <div id="modal-result" class="modal">
             <div class="modal-content result-content">
                 <div class="result-stars" id="result-stars"></div>
@@ -152,23 +289,46 @@
             </div>
         </div>
 
+        <!-- ===== ESCAPE RESULT MODAL ===== -->
+        <div id="modal-escape-result" class="modal">
+            <div class="modal-content result-content">
+                <div class="result-stars" id="escape-result-stars"></div>
+                <div class="result-title" id="escape-result-title"></div>
+                <div class="result-stats" id="escape-result-stats"></div>
+                <div class="result-buttons">
+                    <button class="btn btn-secondary" id="escape-btn-retry">🔄 Ещё раз</button>
+                    <button class="btn btn-primary" id="escape-btn-next">▶ Далее</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Particles container -->
         <div id="particles-container"></div>
     </div>
 
     <!-- Scripts -->
-    <script src="js/i18n.js"></script>
-    <script src="js/storage.js"></script>
-    <script src="js/audio.js"></script>
-    <script src="js/effects.js"></script>
-    <script src="js/levels.js"></script>
-    <script src="js/canvas-renderer.js"></script>
-    <script src="js/palette.js"></script>
-    <script src="js/tools.js"></script>
-    <script src="js/scoring.js"></script>
-    <script src="js/modes.js"></script>
-    <script src="js/game.js"></script>
-    <script src="js/level-select.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/i18n.js?v=18"></script>
+    <script src="js/storage.js?v=18"></script>
+    <script src="js/audio.js?v=18"></script>
+    <script src="js/effects.js?v=18"></script>
+    <script src="js/levels.js?v=18"></script>
+    <script src="js/canvas-renderer.js?v=18"></script>
+    <script src="js/palette.js?v=18"></script>
+    <script src="js/tools.js?v=18"></script>
+    <script src="js/scoring.js?v=18"></script>
+    <script src="js/modes.js?v=18"></script>
+    <script src="js/game.js?v=18"></script>
+    <script src="js/escape-levels.js?v=18"></script>
+    <script src="js/live-levels.js?v=18"></script>
+    <script src="js/level-select.js?v=18"></script>
+    <script src="js/escape-level-select.js?v=18"></script>
+    <script src="js/live-level-select.js?v=18"></script>
+    <script src="js/daily-challenge.js?v=18"></script>
+    <script src="js/xp-system.js?v=18"></script>
+    <script src="js/cat-skins.js?v=18"></script>
+    <script src="js/achievements.js?v=18"></script>
+    <script src="js/endless-mode.js?v=18"></script>
+    <script src="js/escape-game.js?v=18"></script>
+    <script src="js/app.js?v=18"></script>
 </body>
 </html>

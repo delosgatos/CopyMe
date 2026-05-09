@@ -72,5 +72,52 @@ const Storage = (() => {
         return count;
     }
 
-    return { get, set, remove, getLevelProgress, setLevelProgress, getTotalStars, getCompletedCount };
+    // === Escape progress ===
+    function getEscapeProgress(levelId) {
+        return get('escape_' + levelId, { stars: 0, completed: false, coins: 0 });
+    }
+
+    function setEscapeProgress(levelId, data) {
+        const existing = getEscapeProgress(levelId);
+        const merged = {
+            stars: Math.max(existing.stars, data.stars || 0),
+            completed: existing.completed || data.completed || false,
+            coins: Math.max(existing.coins || 0, data.coins || 0),
+        };
+        set('escape_' + levelId, merged);
+    }
+
+    function getEscapeStars() {
+        let total = 0;
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(PREFIX + 'escape_')) {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    total += (data.stars || 0);
+                } catch {}
+            }
+        }
+        return total;
+    }
+
+    function getEscapeCompletedCount() {
+        let count = 0;
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(PREFIX + 'escape_')) {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    if (data.completed) count++;
+                } catch {}
+            }
+        }
+        return count;
+    }
+
+    return {
+        get, set, remove,
+        getLevelProgress, setLevelProgress, getTotalStars, getCompletedCount,
+        getEscapeProgress, setEscapeProgress, getEscapeStars, getEscapeCompletedCount,
+    };
 })();
