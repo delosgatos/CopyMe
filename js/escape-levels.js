@@ -1,48 +1,31 @@
 /* ============================================
-   Escape Levels — Maze data for Побег mode
-   Cell values:
-     0 = empty (passable)
-     1 = wall
-     2 = trap (fire)
-     3 = key
-     4 = coin
-     5 = door (locked, needs key)
-     S = start (encoded as 8)
-     E = exit  (encoded as 9)
-    10 = speed power-up
-    11 = freeze power-up
-    12 = ghost power-up
+   Escape Levels — 12 handcrafted maze puzzles
+   Increasing size + complexity, crossing required from L4+
    ============================================ */
 
 const EscapeLevels = (() => {
-    // Cell type constants
     const C = {
-        EMPTY: 0,
-        WALL:  1,
-        TRAP:  2,
-        KEY:   3,
-        COIN:  4,
-        DOOR:  5,   // locked door (needs key)
-        START: 8,
-        EXIT:  9,
-        SPEED: 10,
-        FREEZE: 11,
-        GHOST: 12,
+        EMPTY: 0, WALL: 1, TRAP: 2, KEY: 3, COIN: 4, DOOR: 5,
+        START: 8, EXIT: 9,
+        SPEED: 10, FREEZE: 11, GHOST: 12,
+        PORTAL_A: 13, PORTAL_B: 14, SLOW: 15,
+        PORTAL_C: 16, PORTAL_D: 17,
     };
 
     const _ = C.EMPTY, W = C.WALL, T = C.TRAP, K = C.KEY, 
           O = C.COIN, D = C.DOOR, S = C.START, E = C.EXIT,
-          SP = C.SPEED, FR = C.FREEZE, GH = C.GHOST;
+          SP = C.SPEED, FR = C.FREEZE, GH = C.GHOST,
+          PA = C.PORTAL_A, PB = C.PORTAL_B, SL = C.SLOW,
+          PC = C.PORTAL_C, PD = C.PORTAL_D;
 
     const levels = [
-        // === Level 1: Tutorial — simple zigzag, no traps ===
+        // ═══════════════════════════════════════════
+        // L1 (7×7) Tutorial — simple zigzag
+        // ═══════════════════════════════════════════
         {
             id: 'escape_01',
             name: { ru: 'Первый побег', en: 'First Escape' },
-            size: 7,
-            chaserDelay: 4000,
-            chaserSpeed: 500,
-            runnerSpeed: 250,
+            size: 7, chaserDelay: 4000, chaserSpeed: 500, runnerSpeed: 250,
             chasers: 1,
             grid: [
                 [S,_,_,_,_,_,_],
@@ -54,14 +37,14 @@ const EscapeLevels = (() => {
                 [_,_,_,_,_,_,E],
             ],
         },
-        // === Level 2: First coins — slight branching ===
+
+        // ═══════════════════════════════════════════
+        // L2 (7×7) Coins — branching paths
+        // ═══════════════════════════════════════════
         {
             id: 'escape_02',
             name: { ru: 'Монетки', en: 'Coins' },
-            size: 7,
-            chaserDelay: 3500,
-            chaserSpeed: 450,
-            runnerSpeed: 240,
+            size: 7, chaserDelay: 3500, chaserSpeed: 450, runnerSpeed: 240,
             chasers: 1,
             grid: [
                 [S,_,_,W,_,O,_],
@@ -73,14 +56,14 @@ const EscapeLevels = (() => {
                 [O,_,_,_,_,_,E],
             ],
         },
-        // === Level 3: First traps ===
+
+        // ═══════════════════════════════════════════
+        // L3 (8×8) Fire — dodge the traps
+        // ═══════════════════════════════════════════
         {
             id: 'escape_03',
             name: { ru: 'Осторожно, огонь!', en: 'Watch the Fire!' },
-            size: 8,
-            chaserDelay: 3000,
-            chaserSpeed: 400,
-            runnerSpeed: 240,
+            size: 8, chaserDelay: 3000, chaserSpeed: 400, runnerSpeed: 240,
             chasers: 1,
             grid: [
                 [S,_,_,W,_,_,_,_],
@@ -93,156 +76,223 @@ const EscapeLevels = (() => {
                 [_,W,W,T,W,W,_,E],
             ],
         },
-        // === Level 4: Multiple paths with coins and traps ===
+
+        // ═══════════════════════════════════════════
+        // L4 (9×9) CROSSING REQUIRED — Key in dead-end spur
+        // Must go through corridor to key, backtrack (cross!) to door
+        // ═══════════════════════════════════════════
         {
             id: 'escape_04',
-            name: { ru: 'Развилка', en: 'Crossroads' },
-            size: 8,
-            chaserDelay: 2800,
-            chaserSpeed: 380,
-            runnerSpeed: 230,
+            name: { ru: 'Петля', en: 'The Loop' },
+            size: 9, chaserDelay: 3000, chaserSpeed: 380, runnerSpeed: 230,
             chasers: 1,
             grid: [
-                [S,_,_,_,W,_,O,_],
-                [_,W,W,_,W,_,W,_],
-                [_,_,_,_,_,_,W,_],
-                [W,W,_,W,W,_,_,_],
-                [_,_,_,_,W,W,W,_],
-                [_,W,W,_,_,_,T,_],
-                [_,_,W,_,W,_,W,_],
-                [O,_,_,_,W,_,_,E],
+                [S,_,_,W,_,_,_,_,_],
+                [W,W,_,W,_,W,W,W,_],
+                [_,_,_,_,_,_,_,W,_],
+                [_,W,W,W,W,W,_,W,_],
+                [_,W,_,K,_,W,_,_,_],
+                [_,W,_,W,W,W,W,W,_],
+                [_,W,_,_,_,_,_,_,_],
+                [_,W,W,W,W,W,W,W,_],
+                [_,_,_,_,_,_,_,_,D],
             ],
         },
-        // === Level 5: Key + Door ===
+
+        // ═══════════════════════════════════════════
+        // L5 (9×9) Portals — teleport across the maze
+        // ═══════════════════════════════════════════
         {
             id: 'escape_05',
-            name: { ru: 'Найди ключ!', en: 'Find the Key!' },
-            size: 8,
-            chaserDelay: 2500,
-            chaserSpeed: 360,
-            runnerSpeed: 220,
+            name: { ru: 'Телепорт', en: 'Teleport' },
+            size: 9, chaserDelay: 2800, chaserSpeed: 360, runnerSpeed: 230,
             chasers: 1,
             grid: [
-                [S,_,_,W,_,_,_,_],
-                [_,W,_,W,_,W,_,K],
-                [_,W,_,_,_,W,_,_],
-                [_,_,_,W,_,W,W,_],
-                [W,W,_,W,_,_,_,_],
-                [_,_,_,_,_,W,W,W],
-                [_,W,W,W,_,_,_,_],
-                [_,_,_,_,_,W,W,D],
+                [S,_,_,W,W,W,W,W,_],
+                [_,W,_,_,_,_,_,W,_],
+                [_,W,W,W,W,W,_,W,_],
+                [_,_,_,_,_,W,_,W,_],
+                [W,W,W,W,_,W,PA,_,_],
+                [_,_,_,_,_,W,W,W,W],
+                [_,W,W,W,_,_,_,_,_],
+                [_,_,PB,W,W,W,W,W,_],
+                [W,W,_,_,_,_,_,_,E],
             ],
         },
-        // === Level 6: Bigger maze — 10x10 ===
+
+        // ═══════════════════════════════════════════
+        // L6 (10×10) Crossing + Speed boost — tight corridors
+        // ═══════════════════════════════════════════
         {
             id: 'escape_06',
-            name: { ru: 'Большой лабиринт', en: 'Big Maze' },
-            size: 10,
-            chaserDelay: 2500,
-            chaserSpeed: 350,
-            runnerSpeed: 220,
+            name: { ru: 'Запутанный путь', en: 'Tangled Path' },
+            size: 10, chaserDelay: 2500, chaserSpeed: 350, runnerSpeed: 220,
             chasers: 1,
             grid: [
-                [S,_,_,W,_,_,O,_,_,_],
-                [_,W,_,W,_,W,W,_,W,_],
-                [_,W,_,_,_,_,_,_,W,_],
-                [_,W,W,W,W,W,_,W,W,_],
-                [_,_,_,_,_,_,_,_,_,_],
-                [W,W,W,_,W,W,W,W,_,W],
-                [_,_,_,_,W,_,_,_,_,_],
-                [_,W,W,_,W,_,W,W,W,_],
-                [_,_,W,_,_,_,_,_,_,_],
-                [W,_,W,W,W,_,W,W,_,E],
+                [S,_,_,W,_,_,_,_,_,_],
+                [W,W,_,W,_,W,W,W,W,_],
+                [_,_,_,_,_,_,_,_,W,_],
+                [_,W,W,W,W,W,W,_,W,_],
+                [_,W,_,K,_,_,W,_,_,_],
+                [_,W,_,W,W,_,W,W,W,_],
+                [_,_,_,W,SP,_,_,_,W,_],
+                [W,W,_,W,W,W,W,_,W,_],
+                [_,_,_,_,_,_,_,_,W,_],
+                [_,W,W,W,W,W,W,_,_,D],
             ],
         },
-        // === Level 7: Double chase with power-ups ===
+
+        // ═══════════════════════════════════════════
+        // L7 (11×11) TORNADO chaser + portal pair
+        // Tornado ignores walls — real threat!
+        // ═══════════════════════════════════════════
         {
             id: 'escape_07',
-            name: { ru: 'Двойная погоня', en: 'Double Chase' },
-            size: 10,
-            chaserDelay: 2200,
-            chaserSpeed: 330,
-            runnerSpeed: 210,
-            chasers: 2,
+            name: { ru: 'Торнадо', en: 'Tornado' },
+            size: 11, chaserDelay: 3000, chaserSpeed: 350, runnerSpeed: 210,
+            chasers: 1,
+            chaserTypes: ['tornado'],
             grid: [
-                [S,_,_,W,_,_,_,_,W,_],
-                [_,W,_,_,_,W,W,_,W,_],
-                [_,W,W,W,_,W,_,_,_,_],
-                [_,_,_,W,_,_,_,W,W,_],
-                [W,W,_,_,_,W,_,SP,_,_],
-                [_,_,_,W,_,W,W,W,_,W],
-                [_,W,_,W,_,_,_,_,_,_],
-                [_,W,_,_,_,W,W,_,W,_],
-                [_,_,_,W,_,_,W,_,W,_],
-                [W,_,W,W,FR,_,_,_,_,E],
+                [S,_,_,_,W,_,_,_,_,_,_],
+                [_,W,W,_,W,_,W,W,W,W,_],
+                [_,_,_,_,_,_,_,_,_,W,_],
+                [W,W,W,W,W,W,W,W,_,W,_],
+                [_,_,_,_,_,_,_,_,_,_,_],
+                [_,W,W,W,_,W,W,W,W,W,W],
+                [_,_,PA,W,_,_,_,_,_,_,_],
+                [W,W,_,W,W,W,W,W,W,W,_],
+                [_,_,_,_,_,_,_,_,_,W,_],
+                [_,W,W,W,W,W,W,W,PB,_,_],
+                [_,_,_,_,_,_,_,_,_,_,E],
             ],
         },
-        // === Level 8: Treasure + Door (10x10) ===
+
+        // ═══════════════════════════════════════════
+        // L8 (11×11) Slow zones + crossing + 2 chasers
+        // ═══════════════════════════════════════════
         {
             id: 'escape_08',
-            name: { ru: 'Сокровища', en: 'Treasures' },
-            size: 10,
-            chaserDelay: 2000,
-            chaserSpeed: 320,
-            runnerSpeed: 200,
+            name: { ru: 'Ледяной лабиринт', en: 'Ice Maze' },
+            size: 11, chaserDelay: 2500, chaserSpeed: 320, runnerSpeed: 200,
             chasers: 2,
             grid: [
-                [S,_,_,W,_,_,O,_,_,_],
-                [_,W,_,W,_,W,W,_,W,K],
-                [_,W,_,_,_,_,_,_,_,_],
-                [_,W,W,W,W,_,W,W,W,_],
-                [_,_,O,_,_,_,W,_,_,_],
-                [W,W,W,_,W,_,_,_,W,_],
-                [O,_,_,_,W,_,W,_,W,_],
-                [W,_,W,_,_,_,W,_,_,_],
-                [_,_,W,W,W,_,W,W,W,_],
-                [_,_,_,_,_,_,_,O,_,D],
+                [S,_,_,W,_,_,_,_,W,_,_],
+                [W,W,_,W,_,W,W,_,W,_,W],
+                [_,_,_,_,_,SL,_,_,_,_,_],
+                [_,W,W,W,W,W,W,W,W,_,W],
+                [_,W,_,K,_,_,_,_,W,_,_],
+                [_,W,_,W,W,W,W,_,W,W,_],
+                [_,_,_,W,_,_,W,_,_,_,_],
+                [W,W,_,W,_,W,W,W,_,W,W],
+                [_,_,_,_,_,SL,_,_,_,_,_],
+                [_,W,W,W,W,W,W,W,W,_,W],
+                [_,_,_,_,_,_,SP,_,_,_,D],
             ],
         },
-        // === Level 9: Fire gauntlet ===
+
+        // ═══════════════════════════════════════════
+        // L9 (12×12) Dual portals — A↔B and C↔D
+        // ═══════════════════════════════════════════
         {
             id: 'escape_09',
-            name: { ru: 'Огненный забег', en: 'Fire Gauntlet' },
-            size: 10,
-            chaserDelay: 1800,
-            chaserSpeed: 300,
-            runnerSpeed: 200,
-            chasers: 2,
+            name: { ru: 'Двойной портал', en: 'Dual Portal' },
+            size: 12, chaserDelay: 2200, chaserSpeed: 300, runnerSpeed: 200,
+            chasers: 1,
+            chaserTypes: ['tornado'],
             grid: [
-                [S,_,_,_,W,_,_,_,_,_],
-                [W,_,W,_,W,_,W,T,W,_],
-                [_,_,W,_,_,_,_,_,W,_],
-                [_,W,W,W,_,W,W,_,_,_],
-                [_,_,T,_,_,_,W,_,W,_],
-                [W,_,W,W,W,_,_,_,W,_],
-                [_,_,_,_,W,_,W,_,_,_],
-                [_,W,W,_,T,_,W,W,W,_],
-                [_,_,W,_,W,_,_,_,_,_],
-                [W,_,_,_,W,_,W,W,_,E],
+                [S,_,_,_,W,_,_,_,_,W,_,_],
+                [_,W,W,_,W,_,W,W,_,W,_,W],
+                [_,_,_,_,_,_,_,W,_,_,_,_],
+                [W,W,W,W,W,W,_,W,W,W,W,_],
+                [_,_,PA,_,_,_,_,_,_,_,W,_],
+                [_,W,W,W,W,W,W,W,W,_,_,_],
+                [_,_,_,_,_,_,_,_,W,_,W,W],
+                [W,W,W,W,W,W,W,_,W,_,PC,_],
+                [_,_,_,PB,_,_,_,_,_,_,W,_],
+                [_,W,W,W,W,W,W,W,W,W,W,_],
+                [_,_,_,_,_,_,_,_,PD,_,_,_],
+                [W,W,W,W,W,W,W,W,_,W,W,E],
             ],
         },
-        // === Level 10: The Final Maze ===
+
+        // ═══════════════════════════════════════════
+        // L10 (13×13) Complex crossing + tornado + key
+        // ═══════════════════════════════════════════
         {
             id: 'escape_10',
-            name: { ru: 'Финальный лабиринт', en: 'The Final Maze' },
-            size: 12,
-            chaserDelay: 1500,
-            chaserSpeed: 280,
-            runnerSpeed: 190,
+            name: { ru: 'Хаос', en: 'Chaos' },
+            size: 13, chaserDelay: 2000, chaserSpeed: 280, runnerSpeed: 190,
             chasers: 2,
+            chaserTypes: ['normal', 'tornado'],
             grid: [
-                [S,_,_,W,_,_,_,_,W,_,_,_],
-                [_,W,_,W,_,W,W,_,W,_,W,_],
-                [_,W,_,_,_,_,_,_,_,_,W,_],
-                [_,W,W,W,W,W,_,W,W,_,_,_],
-                [_,_,_,_,_,_,_,_,W,_,W,W],
-                [W,W,W,_,W,W,W,_,_,_,_,_],
-                [_,_,_,_,W,_,_,_,W,W,W,_],
-                [_,W,W,_,W,_,W,_,_,_,_,_],
-                [_,_,W,_,_,_,W,_,W,W,_,W],
-                [W,_,_,_,W,_,W,_,W,_,_,_],
-                [_,_,W,_,W,_,_,_,_,_,W,_],
-                [_,W,W,_,W,W,W,_,W,_,_,E],
+                [S,_,_,_,W,_,_,_,_,W,_,_,_],
+                [_,W,W,_,W,_,W,W,_,W,_,W,_],
+                [_,_,_,_,_,_,_,W,_,_,_,W,_],
+                [W,W,W,W,_,W,_,W,W,W,_,W,_],
+                [_,_,_,_,_,W,_,_,_,_,_,_,_],
+                [_,W,W,W,W,W,W,W,W,W,W,W,_],
+                [_,_,_,PA,_,_,K,_,_,PB,_,_,_],
+                [_,W,W,W,W,W,W,W,W,W,W,W,_],
+                [_,_,_,_,_,W,_,_,_,_,_,_,_],
+                [W,W,W,_,W,W,_,W,W,W,W,_,W],
+                [_,_,_,_,_,_,_,W,_,_,_,_,_],
+                [_,W,W,W,W,W,_,W,_,W,W,W,_],
+                [_,_,_,_,_,_,_,_,_,_,_,_,D],
+            ],
+        },
+
+        // ═══════════════════════════════════════════
+        // L11 (14×14) Multi-portal + crossing + traps
+        // ═══════════════════════════════════════════
+        {
+            id: 'escape_11',
+            name: { ru: 'Лабиринт Минотавра', en: 'Minotaur Maze' },
+            size: 14, chaserDelay: 1800, chaserSpeed: 260, runnerSpeed: 180,
+            chasers: 2,
+            chaserTypes: ['tornado', 'normal'],
+            grid: [
+                [S,_,_,_,W,_,_,_,_,_,W,_,_,_],
+                [_,W,W,_,W,_,W,W,W,_,W,_,W,_],
+                [_,_,_,_,_,_,_,_,W,_,_,_,W,_],
+                [W,W,W,W,W,W,W,_,W,W,W,_,W,_],
+                [_,_,_,PA,_,_,_,_,_,_,W,_,_,_],
+                [_,W,W,W,W,W,_,W,W,_,W,W,W,W],
+                [_,_,_,_,_,T,_,_,W,_,_,_,_,_],
+                [W,W,W,W,_,W,W,_,W,W,W,W,W,_],
+                [_,_,_,_,_,_,W,_,_,_,_,_,W,_],
+                [_,W,W,W,W,_,W,W,W,W,W,_,_,_],
+                [_,_,_,PB,W,_,_,_,T,_,W,_,W,W],
+                [W,W,_,W,W,W,W,W,W,_,W,_,_,_],
+                [_,_,_,_,_,_,_,_,_,_,W,W,W,_],
+                [_,W,W,W,W,W,W,W,W,_,_,_,_,E],
+            ],
+        },
+
+        // ═══════════════════════════════════════════
+        // L12 (15×15) The Ultimate — everything combined
+        // ═══════════════════════════════════════════
+        {
+            id: 'escape_12',
+            name: { ru: 'Финальное испытание', en: 'The Final Test' },
+            size: 15, chaserDelay: 1500, chaserSpeed: 250, runnerSpeed: 170,
+            chasers: 2,
+            chaserTypes: ['normal', 'tornado'],
+            grid: [
+                [S,_,_,_,W,_,_,_,_,_,W,_,_,_,_],
+                [_,W,W,_,W,_,W,W,W,_,W,_,W,W,_],
+                [_,_,_,_,_,_,_,_,W,_,_,_,_,W,_],
+                [W,W,W,W,W,W,_,W,W,W,W,W,_,W,_],
+                [_,_,_,_,_,_,_,_,_,_,PA,W,_,_,_],
+                [_,W,W,W,W,W,W,W,W,_,W,W,W,W,_],
+                [_,_,_,_,SL,_,_,_,W,_,_,_,_,_,_],
+                [W,W,W,_,W,W,W,_,W,W,W,W,W,W,W],
+                [_,_,_,_,_,K,W,_,_,_,_,_,_,_,_],
+                [_,W,W,W,_,W,W,W,W,W,W,W,W,_,W],
+                [_,_,_,W,_,_,_,_,_,_,_,_,W,_,_],
+                [W,W,_,W,W,W,W,W,_,W,W,_,W,W,_],
+                [_,_,_,_,_,_,PB,_,_,_,W,_,_,_,_],
+                [_,W,W,W,W,W,W,W,W,_,W,W,W,W,_],
+                [_,_,_,_,_,_,_,_,_,_,_,_,SP,_,D],
             ],
         },
     ];

@@ -4,7 +4,11 @@
    ============================================ */
 
 const EscapeGame = (() => {
-    const C = { EMPTY: 0, WALL: 1, TRAP: 2, KEY: 3, COIN: 4, DOOR: 5, START: 8, EXIT: 9, SPEED: 10, FREEZE: 11, GHOST: 12 };
+    const C = { EMPTY: 0, WALL: 1, TRAP: 2, KEY: 3, COIN: 4, DOOR: 5, START: 8, EXIT: 9, SPEED: 10, FREEZE: 11, GHOST: 12, PORTAL_A: 13, PORTAL_B: 14, SLOW: 15, PORTAL_C: 16, PORTAL_D: 17 };
+
+    // Portal position pairs (found at level start)
+    let portalPairs = {}; // { 13: {x,y}, 14: {x,y}, 16: {x,y}, 17: {x,y} }
+    let slowUntilIdx = -1; // runner index until which slow effect is active
     
     // State
     let gameMode = 'escape';
@@ -103,6 +107,10 @@ const EscapeGame = (() => {
                 }
                 if (grid[y][x] === C.EXIT || grid[y][x] === C.DOOR) {
                     exitPos = { x, y };
+                }
+                // Track portal positions
+                if ([C.PORTAL_A, C.PORTAL_B, C.PORTAL_C, C.PORTAL_D].includes(grid[y][x])) {
+                    portalPairs[grid[y][x]] = { x, y };
                 }
             }
         }
@@ -551,11 +559,52 @@ const EscapeGame = (() => {
             Achievements.recordPowerup('freeze');
         }
         if (cell === C.GHOST) {
-            activeEffects.ghost = Date.now() + 2500; // 2.5 sec
+            activeEffects.ghost = Date.now() + 2500;
             grid[runner.y][runner.x] = C.EMPTY;
             SFX.hint();
             if (navigator.vibrate) navigator.vibrate([20, 40, 20]);
             Achievements.recordPowerup('ghost');
+        }
+        // Portal teleportation
+        if (cell === C.PORTAL_A && portalPairs[C.PORTAL_B]) {
+            const dest = portalPairs[C.PORTAL_B];
+            runner.x = dest.x; runner.y = dest.y;
+            runner.visualX = dest.x; runner.visualY = dest.y;
+            SFX.hint();
+            if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
+        }
+        if (cell === C.PORTAL_B && portalPairs[C.PORTAL_A]) {
+            const dest = portalPairs[C.PORTAL_A];
+            runner.x = dest.x; runner.y = dest.y;
+            runner.visualX = dest.x; runner.visualY = dest.y;
+            SFX.hint();
+        }
+        if (cell === C.PORTAL_C && portalPairs[C.PORTAL_D]) {
+            const dest = portalPairs[C.PORTAL_D];
+            runner.x = dest.x; runner.y = dest.y;
+            runner.visualX = dest.x; runner.visualY = dest.y;
+            SFX.hint();
+        }
+        if (cell === C.PORTAL_D && portalPairs[C.PORTAL_C]) {
+            const dest = portalPairs[C.PORTAL_C];
+            runner.x = dest.x; runner.y = dest.y;
+            runner.visualX = dest.x; runner.visualY = dest.y;
+            SFX.hint();
+        }
+        // Slow effect — slows runner for next 6 steps
+        if (cell === C.SLOW) {
+            slowUntilIdx = runnerIdx + 6;
+            grid[runner.y][runner.x] = C.EMPTY;
+            SFX.error();
+            if (navigator.vibrate) navigator.vibrate([100]);
+            if (runInterval) clearInterval(runInterval);
+            runInterval = setInterval(() => advanceRunner(), originalRunnerSpeed * 2.0);
+            setTimeout(() => {
+                if (phase === 'run' && runInterval) {
+                    clearInterval(runInterval);
+                    runInterval = setInterval(() => advanceRunner(), originalRunnerSpeed * 1.2);
+                }
+            }, 3000);
         }
         if (cell === C.DOOR && !hasKey) {
             lose('locked');
@@ -582,32 +631,32 @@ const EscapeGame = (() => {
     }
 
     function spawnChasers() {
+        const chaserDefs = level.chaserTypes || [];
         const numChasers = level.chasers || 1;
         
         // First chaser starts at start position
-        chasers.push({ x: startPos.x, y: startPos.y, dx: 0, dy: 0 });
+        chasers.push({ x: startPos.x, y: startPos.y, dx: 0, dy: 0, type: chaserDefs[0] || 'normal' });
         
-        // Second chaser from a different corner
-        if (numChasers >= 2) {
-            // Find a far corner
-            const corners = [
-                { x: 0, y: gridSize - 1 },
-                { x: gridSize - 1, y: 0 },
-                { x: 0, y: 0 },
-            ];
+        // Additional chasers from corners
+        const corners = [
+            { x: 0, y: gridSize - 1 },
+            { x: gridSize - 1, y: 0 },
+            { x: 0, y: 0 },
+        ];
+        for (let i = 1; i < numChasers; i++) {
             for (const corner of corners) {
-                if (grid[corner.y][corner.x] !== C.WALL) {
-                    chasers.push({ x: corner.x, y: corner.y, dx: 0, dy: 0 });
+                if (grid[corner.y][corner.x] !== C.WALL && !chasers.some(c => c.x === corner.x && c.y === corner.y)) {
+                    chasers.push({ x: corner.x, y: corner.y, dx: 0, dy: 0, type: chaserDefs[i] || 'normal' });
                     break;
                 }
             }
         }
 
-        // Each chaser follows the runner path
         chasers.forEach((ch, idx) => {
+            const speedMult = ch.type === 'tornado' ? 1.4 : 1.2;
             const interval = setInterval(() => {
                 advanceChaser(idx);
-            }, level.chaserSpeed * 1.2);
+            }, level.chaserSpeed * speedMult);
             chaserIntervals.push(interval);
         });
     }
@@ -639,8 +688,9 @@ const EscapeGame = (() => {
                 }
             }
         } else {
-            // BFS to find shortest path to runner on any passable cell
-            const nextStep = bfsNextStep(ch.x, ch.y, runner.x, runner.y);
+            // BFS to find shortest path to runner
+            const throughWalls = ch.type === 'tornado'; // tornado ignores walls!
+            const nextStep = bfsNextStep(ch.x, ch.y, runner.x, runner.y, throughWalls);
             if (nextStep) {
                 ch.dx = nextStep.x - ch.x;
                 ch.dy = nextStep.y - ch.y;
@@ -656,8 +706,8 @@ const EscapeGame = (() => {
         }
     }
 
-    // BFS: find next step from (sx,sy) toward (tx,ty) on ANY passable cell
-    function bfsNextStep(sx, sy, tx, ty) {
+    // BFS: find next step from (sx,sy) toward (tx,ty)
+    function bfsNextStep(sx, sy, tx, ty, throughWalls = false) {
         if (sx === tx && sy === ty) return null;
         const visited = Array.from({ length: gridSize }, () => new Array(gridSize).fill(false));
         const parent = Array.from({ length: gridSize }, () => new Array(gridSize).fill(null));
@@ -679,8 +729,7 @@ const EscapeGame = (() => {
                 const nx = cur.x + dx, ny = cur.y + dy;
                 if (nx < 0 || nx >= gridSize || ny < 0 || ny >= gridSize) continue;
                 if (visited[ny][nx]) continue;
-                if (grid[ny][nx] === C.WALL) continue;
-                // Chaser walks ANYWHERE except walls — no pathGrid restriction!
+                if (!throughWalls && grid[ny][nx] === C.WALL) continue;
                 visited[ny][nx] = true;
                 parent[ny][nx] = { x: cur.x, y: cur.y };
                 queue.push({ x: nx, y: ny });
@@ -958,6 +1007,8 @@ const EscapeGame = (() => {
             startIcon: '🏠',
             runner: '🐱',
             chaser: '👹',
+            portal: '#1a2a3a',
+            slow: '#1a2a3a',
         };
 
         for (let y = 0; y < gridSize; y++) {
@@ -975,6 +1026,8 @@ const EscapeGame = (() => {
                 else if (cell === C.KEY)   bgColor = colors.key;
                 else if (cell === C.COIN)  bgColor = colors.coin;
                 else if (cell === C.DOOR)  bgColor = colors.door;
+                else if (cell === C.PORTAL_A || cell === C.PORTAL_B || cell === C.PORTAL_C || cell === C.PORTAL_D)  bgColor = colors.portal;
+                else if (cell === C.SLOW)  bgColor = colors.slow;
                 else if (cell === C.START) bgColor = colors.start;
                 else if (cell === C.EXIT)  bgColor = colors.exit;
 
@@ -1063,13 +1116,17 @@ const EscapeGame = (() => {
                 if (cell === C.SPEED) icon = '⚡';
                 if (cell === C.FREEZE) icon = '❄️';
                 if (cell === C.GHOST) icon = '👻';
+                if (cell === C.PORTAL_A || cell === C.PORTAL_B) icon = '🌀';
+                if (cell === C.PORTAL_C || cell === C.PORTAL_D) icon = '🌀';
+                if (cell === C.SLOW) icon = '🧊';
 
                 if (icon) {
                     // Power-ups get a subtle glow
-                    if (cell === C.SPEED || cell === C.FREEZE || cell === C.GHOST) {
+                    if (cell === C.SPEED || cell === C.FREEZE || cell === C.GHOST || cell === C.PORTAL_A || cell === C.PORTAL_B || cell === C.PORTAL_C || cell === C.PORTAL_D || cell === C.SLOW) {
                         const pulse = (Math.sin(Date.now() / 300 + x + y) + 1) / 2;
                         ctx.save();
-                        ctx.shadowColor = cell === C.SPEED ? '#f59e0b' : cell === C.FREEZE ? '#3b82f6' : '#a855f7';
+                        const glowMap = { [C.SPEED]: '#f59e0b', [C.FREEZE]: '#3b82f6', [C.GHOST]: '#a855f7', [C.PORTAL_A]: '#8b5cf6', [C.PORTAL_B]: '#8b5cf6', [C.PORTAL_C]: '#ec4899', [C.PORTAL_D]: '#ec4899', [C.SLOW]: '#06b6d4' };
+                        ctx.shadowColor = glowMap[cell] || '#8b5cf6';
                         ctx.shadowBlur = 6 + pulse * 6;
                         ctx.fillText(icon, cx, cy);
                         ctx.restore();
@@ -1274,7 +1331,8 @@ const EscapeGame = (() => {
             const vy = ch.visualY !== undefined ? ch.visualY : ch.y;
             const chx = vx * cs + cs / 2;
             const chy = vy * cs + cs / 2;
-            drawPacman(chx, chy, ch.dx || -1, ch.dy || 0, '#e74c3c', false);
+            const chaserColor = ch.type === 'tornado' ? '#06b6d4' : '#e74c3c';
+            drawPacman(chx, chy, ch.dx || -1, ch.dy || 0, chaserColor, false);
         }
 
         // Danger vignette overlay
