@@ -11,7 +11,7 @@ const EscapeGame = (() => {
     let level = null;
     let gridSize = 0;
     let grid = [];           // level grid (readonly)
-    let pathGrid = [];       // player-drawn path (boolean grid)
+    let pathGrid = [];       // player-drawn path (visit count per cell: 0, 1, 2, ...)
     let phase = 'draw';      // 'draw' | 'countdown' | 'run' | 'won' | 'lost'
     let runner = { x: 0, y: 0, visualX: 0, visualY: 0 };
     let chasers = [];
@@ -27,6 +27,10 @@ const EscapeGame = (() => {
     let startPos = { x: 0, y: 0 };
     let exitPos = { x: 0, y: 0 };
     let hasDrawn = false;
+    let isDrawing = false;     // promoted to module scope for live mode
+    let autoStartTimer = null; // auto-start countdown after first draw
+    let autoStartSeconds = 0;  // remaining seconds
+    let lastDrawTime = 0;      // timestamp of last draw (for live grace period)
 
     // Smooth interpolation
     let lerpQueue = [];      // runner positions to lerp to
@@ -75,7 +79,7 @@ const EscapeGame = (() => {
 
         gridSize = level.size;
         grid = level.grid.map(row => [...row]);
-        pathGrid = Array.from({ length: gridSize }, () => new Array(gridSize).fill(false));
+        pathGrid = Array.from({ length: gridSize }, () => new Array(gridSize).fill(0));
         phase = 'draw';
         hasKey = false;
         coins = 0;
@@ -84,6 +88,9 @@ const EscapeGame = (() => {
         runnerPath = [];
         chasers = [];
         hasDrawn = false;
+        isDrawing = false;
+        lastDrawTime = 0;
+        if (autoStartTimer) { clearInterval(autoStartTimer); autoStartTimer = null; }
 
         // Find start and exit
         for (let y = 0; y < gridSize; y++) {
@@ -91,10 +98,10 @@ const EscapeGame = (() => {
                 if (grid[y][x] === C.START) {
                     startPos = { x, y };
                     runner = { x, y };
-                    pathGrid[y][x] = true;
+                    pathGrid[y][x] = 1;
                     runnerPath = [{ x, y }];
                 }
-                if (grid[y][x] === C.EXIT) {
+                if (grid[y][x] === C.EXIT || grid[y][x] === C.DOOR) {
                     exitPos = { x, y };
                 }
             }
@@ -211,47 +218,44 @@ const EscapeGame = (() => {
         if (inputSetup) return;
         inputSetup = true;
 
-        let isDrawing = false;
-
         c.addEventListener('mousedown', (e) => {
-            if (gameMode === 'live' && hasDrawn) return; // one continuous touch in live mode
             if (phase !== 'draw' && !(gameMode === 'live' && phase === 'run')) return;
             isDrawing = true;
             hasDrawn = true;
+            lastDrawTime = Date.now();
             handleDrawAt(e.clientX, e.clientY);
         });
         c.addEventListener('mousemove', (e) => {
             if (!isDrawing) return;
             if (phase !== 'draw' && !(gameMode === 'live' && phase === 'run')) return;
+            lastDrawTime = Date.now();
             handleDrawAt(e.clientX, e.clientY);
         });
         c.addEventListener('mouseup', () => { 
             isDrawing = false; 
-            if (gameMode === 'live' && phase === 'draw') startRun();
         });
         c.addEventListener('mouseleave', () => { 
             isDrawing = false; 
-            if (gameMode === 'live' && phase === 'draw') startRun();
         });
 
         c.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            if (gameMode === 'live' && hasDrawn) return; // one continuous touch in live mode
             if (phase !== 'draw' && !(gameMode === 'live' && phase === 'run')) return;
             isDrawing = true;
             hasDrawn = true;
+            lastDrawTime = Date.now();
             handleDrawAt(e.touches[0].clientX, e.touches[0].clientY);
         }, { passive: false });
         c.addEventListener('touchmove', (e) => {
             e.preventDefault();
             if (!isDrawing) return;
             if (phase !== 'draw' && !(gameMode === 'live' && phase === 'run')) return;
+            lastDrawTime = Date.now();
             handleDrawAt(e.touches[0].clientX, e.touches[0].clientY);
         }, { passive: false });
         c.addEventListener('touchend', (e) => {
             e.preventDefault();
             isDrawing = false;
-            if (gameMode === 'live' && phase === 'draw') startRun();
         }, { passive: false });
     }
 
@@ -292,18 +296,43 @@ const EscapeGame = (() => {
         if (gx < 0 || gx >= gridSize || gy < 0 || gy >= gridSize) return;
         const cell = grid[gy][gx];
         if (cell === C.WALL) return;
-        if (pathGrid[gy][gx]) return; // already drawn
 
         const lastCell = runnerPath[runnerPath.length - 1];
         const isAdjacent = Math.abs(lastCell.x - gx) + Math.abs(lastCell.y - gy) === 1;
         if (!isAdjacent) return;
 
-        pathGrid[gy][gx] = true;
+        // Prevent immediate backtrack (undo-like ping-pong)
+        if (runnerPath.length >= 2) {
+            const prev = runnerPath[runnerPath.length - 2];
+            if (prev.x === gx && prev.y === gy) return;
+        }
+
+        // Allow crossing! Increment visit count instead of blocking
+        pathGrid[gy][gx] = (pathGrid[gy][gx] || 0) + 1;
         runnerPath.push({ x: gx, y: gy });
         SFX.pixelPlace(2);
         drawCellCount++;
         // Vibrate only every 3rd cell to avoid annoyance
         if (navigator.vibrate && drawCellCount % 3 === 0) navigator.vibrate(5);
+
+        // Auto-start timer: begin countdown when first cell is drawn (non-live modes)
+        if (runnerPath.length === 2 && gameMode !== 'live' && !autoStartTimer) {
+            const drawTime = Math.min(12, 4 + Math.floor(gridSize / 2));
+            autoStartSeconds = drawTime;
+            const phaseLabel = document.getElementById('escape-phase');
+            autoStartTimer = setInterval(() => {
+                autoStartSeconds--;
+                if (phaseLabel && phase === 'draw') {
+                    phaseLabel.textContent = `✏️ ${autoStartSeconds}`;
+                }
+                if (autoStartSeconds <= 0) {
+                    clearInterval(autoStartTimer);
+                    autoStartTimer = null;
+                    if (phase === 'draw') startRun();
+                }
+            }, 1000);
+            if (phaseLabel) phaseLabel.textContent = `✏️ ${autoStartSeconds}`;
+        }
 
         if (gameMode === 'live' && phase === 'draw') {
             startRun();
@@ -312,12 +341,17 @@ const EscapeGame = (() => {
 
     function clearPath() {
         if (phase !== 'draw') return;
-        pathGrid = Array.from({ length: gridSize }, () => new Array(gridSize).fill(false));
+        pathGrid = Array.from({ length: gridSize }, () => new Array(gridSize).fill(0));
         // Keep start on path
-        pathGrid[startPos.y][startPos.x] = true;
+        pathGrid[startPos.y][startPos.x] = 1;
         runnerPath = [{ ...startPos }];
         lastDrawGrid = null;
         drawCellCount = 0;
+        // Reset auto-start timer
+        if (autoStartTimer) { clearInterval(autoStartTimer); autoStartTimer = null; }
+        autoStartSeconds = 0;
+        const phaseLabel = document.getElementById('escape-phase');
+        if (phaseLabel) phaseLabel.textContent = '✏️';
         SFX.undo();
     }
 
@@ -325,7 +359,7 @@ const EscapeGame = (() => {
         if (phase !== 'draw') return;
         if (runnerPath.length <= 1) return; // can't undo start
         const removed = runnerPath.pop();
-        pathGrid[removed.y][removed.x] = false;
+        pathGrid[removed.y][removed.x] = Math.max(0, (pathGrid[removed.y][removed.x] || 0) - 1);
         lastDrawGrid = null;
         SFX.undo();
         render();
@@ -340,6 +374,9 @@ const EscapeGame = (() => {
     // ---- Run Phase ----
     function startRun() {
         if (phase !== 'draw') return;
+
+        // Stop auto-start timer if running
+        if (autoStartTimer) { clearInterval(autoStartTimer); autoStartTimer = null; }
 
         if (runnerPath.length < 2 && gameMode !== 'live') {
             // Path too short — tell the user
@@ -447,9 +484,11 @@ const EscapeGame = (() => {
             if (last.x === exitPos.x && last.y === exitPos.y) {
                 win();
             } else {
-                if (gameMode === 'live' && hasDrawn) { // user is drawing or drew their path
-                    // If they are still touching the screen, wait for them to draw more
-                    if (isDrawing) {
+                // In live mode, wait for the player to draw more
+                if (gameMode === 'live') {
+                    // Grace period: wait up to 800ms after last touch before declaring dead end
+                    const timeSinceLastDraw = Date.now() - lastDrawTime;
+                    if (isDrawing || timeSinceLastDraw < 800) {
                         runnerIdx--; // revert so we check again next tick
                         return;
                     }
@@ -587,20 +626,20 @@ const EscapeGame = (() => {
         const isGhostActive = activeEffects.ghost > now;
 
         if (isGhostActive) {
-            // Random wander on path cells
+            // Random wander on any passable cell
             const dirs = [[0,1],[1,0],[0,-1],[-1,0]];
             const shuffled = dirs.sort(() => Math.random() - 0.5);
             for (const [dx, dy] of shuffled) {
                 const nx = ch.x + dx, ny = ch.y + dy;
                 if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize &&
-                    grid[ny][nx] !== C.WALL && (pathGrid[ny][nx] || grid[ny][nx] === C.START || grid[ny][nx] === C.EXIT)) {
+                    grid[ny][nx] !== C.WALL) {
                     ch.dx = dx; ch.dy = dy;
                     ch.x = nx; ch.y = ny;
                     break;
                 }
             }
         } else {
-            // BFS to find shortest path to runner on pathGrid
+            // BFS to find shortest path to runner on any passable cell
             const nextStep = bfsNextStep(ch.x, ch.y, runner.x, runner.y);
             if (nextStep) {
                 ch.dx = nextStep.x - ch.x;
@@ -617,7 +656,7 @@ const EscapeGame = (() => {
         }
     }
 
-    // BFS: find next step from (sx,sy) toward (tx,ty) on pathGrid
+    // BFS: find next step from (sx,sy) toward (tx,ty) on ANY passable cell
     function bfsNextStep(sx, sy, tx, ty) {
         if (sx === tx && sy === ty) return null;
         const visited = Array.from({ length: gridSize }, () => new Array(gridSize).fill(false));
@@ -641,23 +680,14 @@ const EscapeGame = (() => {
                 if (nx < 0 || nx >= gridSize || ny < 0 || ny >= gridSize) continue;
                 if (visited[ny][nx]) continue;
                 if (grid[ny][nx] === C.WALL) continue;
-                if (!pathGrid[ny][nx] && grid[ny][nx] !== C.START && grid[ny][nx] !== C.EXIT) continue;
+                // Chaser walks ANYWHERE except walls — no pathGrid restriction!
                 visited[ny][nx] = true;
                 parent[ny][nx] = { x: cur.x, y: cur.y };
                 queue.push({ x: nx, y: ny });
             }
         }
-        // No path found — fallback to greedy
-        let bestDir = null, bestDist = Infinity;
-        for (const [dx, dy] of dirs) {
-            const nx = sx + dx, ny = sy + dy;
-            if (nx < 0 || nx >= gridSize || ny < 0 || ny >= gridSize) continue;
-            if (grid[ny][nx] === C.WALL) continue;
-            if (!pathGrid[ny][nx] && grid[ny][nx] !== C.START && grid[ny][nx] !== C.EXIT) continue;
-            const dist = Math.abs(nx - tx) + Math.abs(ny - ty);
-            if (dist < bestDist) { bestDist = dist; bestDir = { x: nx, y: ny }; }
-        }
-        return bestDir;
+        // No path found — shouldn't happen on valid maps
+        return null;
     }
 
     function advanceGhost() {
@@ -933,11 +963,13 @@ const EscapeGame = (() => {
         for (let y = 0; y < gridSize; y++) {
             for (let x = 0; x < gridSize; x++) {
                 const cell = grid[y][x];
-                const isPath = pathGrid[y][x];
+                const visitCount = pathGrid[y][x] || 0;
+                const isPath = visitCount > 0;
 
                 // Base color
                 let bgColor = colors.empty;
                 if (cell === C.WALL)  bgColor = colors.wall;
+                else if (isPath && visitCount >= 2) bgColor = '#1a4a4a'; // crossing: cyan tint
                 else if (isPath)      bgColor = colors.path;
                 else if (cell === C.TRAP)  bgColor = colors.trap;
                 else if (cell === C.KEY)   bgColor = colors.key;
@@ -957,20 +989,24 @@ const EscapeGame = (() => {
 
                 // Path highlight border
                 if (isPath && cell !== C.WALL) {
-                    ctx.strokeStyle = 'rgba(34, 197, 94, 0.4)';
+                    const borderColor = visitCount >= 2 ? 'rgba(34, 211, 238, 0.5)' : 'rgba(34, 197, 94, 0.4)';
+                    ctx.strokeStyle = borderColor;
                     ctx.lineWidth = 2;
                     ctx.strokeRect(x * cs + 1, y * cs + 1, cs - 2, cs - 2);
                 }
 
                 // Drawable neighbor glow (only in draw phase, or live run)
-                if ((phase === 'draw' || (gameMode === 'live' && phase === 'run')) && !isPath && cell !== C.WALL) {
+                // Now shows on ALL non-wall cells including already-drawn ones (for crossing)
+                if ((phase === 'draw' || (gameMode === 'live' && phase === 'run')) && cell !== C.WALL) {
                     const lastCell = runnerPath[runnerPath.length - 1];
                     if (lastCell) {
                         const isAdj = Math.abs(lastCell.x - x) + Math.abs(lastCell.y - y) === 1;
-                        if (isAdj) {
-                            ctx.fillStyle = 'rgba(34, 197, 94, 0.08)';
+                        // Don't glow the cell we just came from (anti-backtrack)
+                        const isPrev = runnerPath.length >= 2 && runnerPath[runnerPath.length - 2].x === x && runnerPath[runnerPath.length - 2].y === y;
+                        if (isAdj && !isPrev) {
+                            ctx.fillStyle = isPath ? 'rgba(34, 211, 238, 0.12)' : 'rgba(34, 197, 94, 0.08)';
                             ctx.fillRect(x * cs, y * cs, cs, cs);
-                            ctx.strokeStyle = 'rgba(34, 197, 94, 0.15)';
+                            ctx.strokeStyle = isPath ? 'rgba(34, 211, 238, 0.2)' : 'rgba(34, 197, 94, 0.15)';
                             ctx.lineWidth = 1;
                             ctx.setLineDash([3, 3]);
                             ctx.strokeRect(x * cs + 1, y * cs + 1, cs - 2, cs - 2);
