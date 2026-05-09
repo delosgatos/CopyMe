@@ -25,8 +25,7 @@ const EscapeLevels = (() => {
         {
             id: 'escape_01',
             name: { ru: 'Первый побег', en: 'First Escape' },
-            size: 7, chaserDelay: 4000, chaserSpeed: 500, runnerSpeed: 250,
-            chasers: 1,
+            size: 7, timeLimit: 15000, runnerSpeed: 200,
             grid: [
                 [S,_,_,_,_,_,_],
                 [W,W,W,W,W,_,W],
@@ -44,8 +43,7 @@ const EscapeLevels = (() => {
         {
             id: 'escape_02',
             name: { ru: 'Монетки', en: 'Coins' },
-            size: 7, chaserDelay: 3500, chaserSpeed: 450, runnerSpeed: 240,
-            chasers: 1,
+            size: 7, timeLimit: 14000, runnerSpeed: 200,
             grid: [
                 [S,_,_,W,_,O,_],
                 [_,W,_,W,_,W,_],
@@ -63,8 +61,7 @@ const EscapeLevels = (() => {
         {
             id: 'escape_03',
             name: { ru: 'Осторожно, огонь!', en: 'Watch the Fire!' },
-            size: 8, chaserDelay: 3000, chaserSpeed: 400, runnerSpeed: 240,
-            chasers: 1,
+            size: 8, timeLimit: 15000, runnerSpeed: 200,
             grid: [
                 [S,_,_,W,_,_,_,_],
                 [_,W,_,W,_,W,W,_],
@@ -84,8 +81,7 @@ const EscapeLevels = (() => {
         {
             id: 'escape_04',
             name: { ru: 'Петля', en: 'The Loop' },
-            size: 9, chaserDelay: 3000, chaserSpeed: 380, runnerSpeed: 230,
-            chasers: 1,
+            size: 9, timeLimit: 16000, runnerSpeed: 200,
             grid: [
                 [S,_,_,W,_,_,_,_,_],
                 [W,W,_,W,_,W,W,W,_],
@@ -105,8 +101,7 @@ const EscapeLevels = (() => {
         {
             id: 'escape_05',
             name: { ru: 'Телепорт', en: 'Teleport' },
-            size: 9, chaserDelay: 2800, chaserSpeed: 360, runnerSpeed: 230,
-            chasers: 1,
+            size: 9, timeLimit: 15000, runnerSpeed: 200,
             grid: [
                 [S,_,_,W,W,W,W,W,_],
                 [_,W,_,_,_,_,_,W,_],
@@ -126,8 +121,7 @@ const EscapeLevels = (() => {
         {
             id: 'escape_06',
             name: { ru: 'Запутанный путь', en: 'Tangled Path' },
-            size: 10, chaserDelay: 2500, chaserSpeed: 350, runnerSpeed: 220,
-            chasers: 1,
+            size: 10, timeLimit: 16000, runnerSpeed: 200,
             grid: [
                 [S,_,_,W,_,_,_,_,_,_],
                 [W,W,_,W,_,W,W,W,W,_],
@@ -149,9 +143,7 @@ const EscapeLevels = (() => {
         {
             id: 'escape_07',
             name: { ru: 'Торнадо', en: 'Tornado' },
-            size: 11, chaserDelay: 3000, chaserSpeed: 350, runnerSpeed: 210,
-            chasers: 1,
-            chaserTypes: ['tornado'],
+            size: 11, timeLimit: 18000, runnerSpeed: 200,
             grid: [
                 [S,_,_,_,W,_,_,_,_,_,_],
                 [_,W,W,_,W,_,W,W,W,W,_],
@@ -173,8 +165,7 @@ const EscapeLevels = (() => {
         {
             id: 'escape_08',
             name: { ru: 'Ледяной лабиринт', en: 'Ice Maze' },
-            size: 11, chaserDelay: 2500, chaserSpeed: 320, runnerSpeed: 200,
-            chasers: 2,
+            size: 11, timeLimit: 17000, runnerSpeed: 200,
             grid: [
                 [S,_,_,W,_,_,_,_,W,_,_],
                 [W,W,_,W,_,W,W,_,W,_,W],
@@ -196,9 +187,7 @@ const EscapeLevels = (() => {
         {
             id: 'escape_09',
             name: { ru: 'Двойной портал', en: 'Dual Portal' },
-            size: 12, chaserDelay: 2200, chaserSpeed: 300, runnerSpeed: 200,
-            chasers: 1,
-            chaserTypes: ['tornado'],
+            size: 12, timeLimit: 20000, runnerSpeed: 200,
             grid: [
                 [S,_,_,_,W,_,_,_,_,W,_,_],
                 [_,W,W,_,W,_,W,W,_,W,_,W],
@@ -221,9 +210,7 @@ const EscapeLevels = (() => {
         {
             id: 'escape_10',
             name: { ru: 'Хаос', en: 'Chaos' },
-            size: 13, chaserDelay: 2000, chaserSpeed: 280, runnerSpeed: 190,
-            chasers: 2,
-            chaserTypes: ['normal', 'tornado'],
+            size: 13, timeLimit: 22000, runnerSpeed: 200,
             grid: [
                 [S,_,_,_,W,_,_,_,_,W,_,_,_],
                 [_,W,W,_,W,_,W,W,_,W,_,W,_],
@@ -247,9 +234,7 @@ const EscapeLevels = (() => {
         {
             id: 'escape_11',
             name: { ru: 'Лабиринт Минотавра', en: 'Minotaur Maze' },
-            size: 14, chaserDelay: 1800, chaserSpeed: 260, runnerSpeed: 180,
-            chasers: 2,
-            chaserTypes: ['tornado', 'normal'],
+            size: 14, timeLimit: 24000, runnerSpeed: 200,
             grid: [
                 [S,_,_,_,W,_,_,_,_,_,W,_,_,_],
                 [_,W,W,_,W,_,W,W,W,_,W,_,W,_],
@@ -274,9 +259,7 @@ const EscapeLevels = (() => {
         {
             id: 'escape_12',
             name: { ru: 'Финальное испытание', en: 'The Final Test' },
-            size: 15, chaserDelay: 1500, chaserSpeed: 250, runnerSpeed: 170,
-            chasers: 2,
-            chaserTypes: ['normal', 'tornado'],
+            size: 15, timeLimit: 25000, runnerSpeed: 200,
             grid: [
                 [S,_,_,_,W,_,_,_,_,_,W,_,_,_,_],
                 [_,W,W,_,W,_,W,W,W,_,W,_,W,W,_],

@@ -31,10 +31,10 @@ const EscapeGame = (() => {
     let startPos = { x: 0, y: 0 };
     let exitPos = { x: 0, y: 0 };
     let hasDrawn = false;
-    let isDrawing = false;     // promoted to module scope for live mode
-    let autoStartTimer = null; // auto-start countdown after first draw
-    let autoStartSeconds = 0;  // remaining seconds
-    let lastDrawTime = 0;      // timestamp of last draw (for live grace period)
+    let isDrawing = false;
+    let escapeTimeLeft = 0;
+    let escapeTimerInterval = null;
+    let lastDrawTime = 0;
 
     // Smooth interpolation
     let lerpQueue = [];      // runner positions to lerp to
@@ -123,15 +123,12 @@ const EscapeGame = (() => {
         // Show draw phase buttons
         const btnStart = document.getElementById('escape-btn-start');
         const btnClear = document.getElementById('escape-btn-clear');
-        if (btnStart) { 
-            btnStart.style.display = gameMode === 'live' ? 'none' : ''; 
-            btnStart.disabled = false; 
-        }
+        if (btnStart) btnStart.style.display = 'none'; // Replaced by immediate start
         if (btnClear) btnClear.style.display = '';
         
         const phaseLabel = document.getElementById('escape-phase');
         if (phaseLabel) {
-            phaseLabel.textContent = gameMode === 'live' ? '⚡ Рисуй!' : '✏️';
+            phaseLabel.textContent = gameMode === 'live' ? '👆 Нажми' : '⏱️';
         }
 
         // Setup input
@@ -139,6 +136,12 @@ const EscapeGame = (() => {
         
         if (animFrame) cancelAnimationFrame(animFrame);
         renderLoop();
+
+        if (gameMode === 'escape') {
+            startRun();
+        } else {
+            phase = 'ready'; // wait for first touch in live mode
+        }
     }
 
     let lastFrameTime = 0;
@@ -209,55 +212,52 @@ const EscapeGame = (() => {
     }
 
     function stop() {
-        phase = 'draw';
+        phase = 'none';
         if (runInterval) { clearInterval(runInterval); runInterval = null; }
         chaserIntervals.forEach(i => clearInterval(i));
         chaserIntervals = [];
         if (chaserDelayTimer) { clearTimeout(chaserDelayTimer); chaserDelayTimer = null; }
-        if (countdownTimer) { clearTimeout(countdownTimer); countdownTimer = null; }
+        if (escapeTimerInterval) { clearInterval(escapeTimerInterval); escapeTimerInterval = null; }
         if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
         if (ghostInterval) { clearInterval(ghostInterval); ghostInterval = null; }
     }
 
-    // ---- Drawing Phase ----
+    // ---- Drawing / Input ----
     let inputSetup = false;
     function setupInput() {
         const c = canvas();
         if (inputSetup) return;
         inputSetup = true;
 
-        c.addEventListener('mousedown', (e) => {
-            if (phase !== 'draw' && !(gameMode === 'live' && phase === 'run')) return;
+        const onStartDraw = (clientX, clientY) => {
+            if (phase === 'ready' && gameMode === 'live') {
+                startRun();
+            }
+            if (phase !== 'run') return;
             isDrawing = true;
             hasDrawn = true;
             lastDrawTime = Date.now();
-            handleDrawAt(e.clientX, e.clientY);
-        });
+            handleDrawAt(clientX, clientY);
+        };
+
+        c.addEventListener('mousedown', (e) => onStartDraw(e.clientX, e.clientY));
         c.addEventListener('mousemove', (e) => {
             if (!isDrawing) return;
-            if (phase !== 'draw' && !(gameMode === 'live' && phase === 'run')) return;
+            if (phase !== 'run') return;
             lastDrawTime = Date.now();
             handleDrawAt(e.clientX, e.clientY);
         });
-        c.addEventListener('mouseup', () => { 
-            isDrawing = false; 
-        });
-        c.addEventListener('mouseleave', () => { 
-            isDrawing = false; 
-        });
+        c.addEventListener('mouseup', () => { isDrawing = false; });
+        c.addEventListener('mouseleave', () => { isDrawing = false; });
 
         c.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            if (phase !== 'draw' && !(gameMode === 'live' && phase === 'run')) return;
-            isDrawing = true;
-            hasDrawn = true;
-            lastDrawTime = Date.now();
-            handleDrawAt(e.touches[0].clientX, e.touches[0].clientY);
+            onStartDraw(e.touches[0].clientX, e.touches[0].clientY);
         }, { passive: false });
         c.addEventListener('touchmove', (e) => {
             e.preventDefault();
             if (!isDrawing) return;
-            if (phase !== 'draw' && !(gameMode === 'live' && phase === 'run')) return;
+            if (phase !== 'run') return;
             lastDrawTime = Date.now();
             handleDrawAt(e.touches[0].clientX, e.touches[0].clientY);
         }, { passive: false });
@@ -312,7 +312,16 @@ const EscapeGame = (() => {
         // Prevent immediate backtrack (undo-like ping-pong)
         if (runnerPath.length >= 2) {
             const prev = runnerPath[runnerPath.length - 2];
-            if (prev.x === gx && prev.y === gy) return;
+            if (prev.x === gx && prev.y === gy) {
+                if (runnerIdx < runnerPath.length - 1) {
+                    // Runner hasn't reached the tip, so erase it
+                    const removed = runnerPath.pop();
+                    pathGrid[removed.y][removed.x] = Math.max(0, (pathGrid[removed.y][removed.x] || 0) - 1);
+                    SFX.pixelPlace(3);
+                    return;
+                }
+                // Else runner is at the tip, we are walking back, so fall through to push!
+            }
         }
 
         // Allow crossing! Increment visit count instead of blocking
@@ -322,29 +331,6 @@ const EscapeGame = (() => {
         drawCellCount++;
         // Vibrate only every 3rd cell to avoid annoyance
         if (navigator.vibrate && drawCellCount % 3 === 0) navigator.vibrate(5);
-
-        // Auto-start timer: begin countdown when first cell is drawn (non-live modes)
-        if (runnerPath.length === 2 && gameMode !== 'live' && !autoStartTimer) {
-            const drawTime = Math.min(12, 4 + Math.floor(gridSize / 2));
-            autoStartSeconds = drawTime;
-            const phaseLabel = document.getElementById('escape-phase');
-            autoStartTimer = setInterval(() => {
-                autoStartSeconds--;
-                if (phaseLabel && phase === 'draw') {
-                    phaseLabel.textContent = `✏️ ${autoStartSeconds}`;
-                }
-                if (autoStartSeconds <= 0) {
-                    clearInterval(autoStartTimer);
-                    autoStartTimer = null;
-                    if (phase === 'draw') startRun();
-                }
-            }, 1000);
-            if (phaseLabel) phaseLabel.textContent = `✏️ ${autoStartSeconds}`;
-        }
-
-        if (gameMode === 'live' && phase === 'draw') {
-            startRun();
-        }
     }
 
     function clearPath() {
@@ -381,24 +367,6 @@ const EscapeGame = (() => {
 
     // ---- Run Phase ----
     function startRun() {
-        if (phase !== 'draw') return;
-
-        // Stop auto-start timer if running
-        if (autoStartTimer) { clearInterval(autoStartTimer); autoStartTimer = null; }
-
-        if (runnerPath.length < 2 && gameMode !== 'live') {
-            // Path too short — tell the user
-            SFX.error();
-            Effects.shake(canvas());
-            const phaseLabel = document.getElementById('escape-phase');
-            const lang = I18n.getLang();
-            if (phaseLabel) phaseLabel.textContent = lang === 'en' ? '✏️ Draw path from 🐱!' : '✏️ Рисуй от 🐱!';
-            setTimeout(() => {
-                if (phaseLabel) phaseLabel.textContent = '✏️';
-            }, 1500);
-            return;
-        }
-
         runner = { ...startPos, visualX: startPos.x, visualY: startPos.y };
         runnerIdx = 0;
         hasKey = false;
@@ -423,38 +391,28 @@ const EscapeGame = (() => {
         if (btnStart) btnStart.disabled = true;
         if (btnClear) btnClear.style.display = 'none';
 
-        // In live mode, skip countdown and start immediately
-        if (gameMode === 'live') {
-            phase = 'run';
+        phase = 'run';
+        
+        if (gameMode === 'escape') {
+            const phaseLabel = document.getElementById('escape-phase');
+            if (phaseLabel) phaseLabel.textContent = '⏱️';
+            
+            escapeTimeLeft = level.timeLimit || 15000;
+            if (escapeTimerInterval) clearInterval(escapeTimerInterval);
+            escapeTimerInterval = setInterval(() => {
+                if (phase !== 'run') return;
+                escapeTimeLeft -= 100;
+                if (escapeTimeLeft <= 0) {
+                    escapeTimeLeft = 0;
+                    lose('timeout');
+                }
+            }, 100);
+            beginRunTimers();
+        } else {
             const phaseLabel = document.getElementById('escape-phase');
             if (phaseLabel) phaseLabel.textContent = '⚡';
             beginRunTimers();
-            return;
         }
-
-        // Countdown 3-2-1-GO!
-        phase = 'countdown';
-        countdownValue = 3;
-        render();
-
-        function tickCountdown() {
-            if (countdownValue > 0) {
-                SFX.click();
-                if (navigator.vibrate) navigator.vibrate(30);
-                render();
-                countdownValue--;
-                countdownTimer = setTimeout(tickCountdown, 700);
-            } else {
-                // GO!
-                SFX.pixelPlace(5);
-                if (navigator.vibrate) navigator.vibrate(50);
-                phase = 'run';
-                const phaseLabel = document.getElementById('escape-phase');
-                if (phaseLabel) phaseLabel.textContent = '🏃';
-                beginRunTimers();
-            }
-        }
-        countdownTimer = setTimeout(tickCountdown, 400);
     }
 
     function beginRunTimers() {
@@ -474,10 +432,12 @@ const EscapeGame = (() => {
             ghostInterval = setInterval(() => advanceGhost(), level.runnerSpeed * 1.2);
         }
 
-        // Start chasers after delay
-        chaserDelayTimer = setTimeout(() => {
-            spawnChasers();
-        }, level.chaserDelay);
+        // Start chasers only in live mode
+        if (gameMode !== 'escape') {
+            chaserDelayTimer = setTimeout(() => {
+                spawnChasers();
+            }, level.chaserDelay);
+        }
 
         render();
     }
@@ -492,6 +452,10 @@ const EscapeGame = (() => {
             if (last.x === exitPos.x && last.y === exitPos.y) {
                 win();
             } else {
+                if (gameMode === 'escape') {
+                    runnerIdx--; // wait indefinitely for more drawing
+                    return;
+                }
                 // In live mode, wait for the player to draw more
                 if (gameMode === 'live') {
                     // Grace period: wait up to 800ms after last touch before declaring dead end
@@ -1455,6 +1419,32 @@ const EscapeGame = (() => {
             }
 
             ctx.restore();
+        }
+
+        // Global Timer Overlay for Escape Mode
+        if (gameMode === 'escape' && phase === 'run') {
+            const maxTime = level.timeLimit || 15000;
+            const pct = escapeTimeLeft / maxTime;
+            const isLow = pct < 0.25;
+            
+            // Draw progress bar at the top
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(0, 0, totalSize, 8);
+            ctx.fillStyle = isLow ? '#ef4444' : '#10b981';
+            ctx.fillRect(0, 0, totalSize * pct, 8);
+            
+            // Draw big centered timer text
+            ctx.font = `bold ${Math.max(16, totalSize * 0.08)}px monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillStyle = isLow ? '#ef4444' : 'rgba(255, 255, 255, 0.8)';
+            const timeStr = (escapeTimeLeft / 1000).toFixed(1) + 's';
+            
+            // Draw text shadow
+            ctx.shadowColor = '#000';
+            ctx.shadowBlur = 4;
+            ctx.fillText(timeStr, totalSize / 2, 12);
+            ctx.shadowBlur = 0;
         }
 
         // Countdown overlay
