@@ -522,6 +522,10 @@ const EscapeGame = (() => {
             lose('locked');
             return;
         }
+        if (cell === C.DOOR && hasKey) {
+            win();
+            return;
+        }
         if (cell === C.EXIT) {
             win();
             return;
