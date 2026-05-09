@@ -634,21 +634,49 @@ const EscapeGame = (() => {
         const chaserDefs = level.chaserTypes || [];
         const numChasers = level.chasers || 1;
         
-        // First chaser starts at start position
-        chasers.push({ x: startPos.x, y: startPos.y, dx: 0, dy: 0, type: chaserDefs[0] || 'normal' });
-        
-        // Additional chasers from corners
-        const corners = [
-            { x: 0, y: gridSize - 1 },
-            { x: gridSize - 1, y: 0 },
+        // Collect spawn candidates: all 4 corners + edge midpoints, sorted by distance from runner
+        const candidates = [
             { x: 0, y: 0 },
+            { x: gridSize - 1, y: 0 },
+            { x: 0, y: gridSize - 1 },
+            { x: gridSize - 1, y: gridSize - 1 },
+            { x: Math.floor(gridSize / 2), y: 0 },
+            { x: Math.floor(gridSize / 2), y: gridSize - 1 },
+            { x: 0, y: Math.floor(gridSize / 2) },
+            { x: gridSize - 1, y: Math.floor(gridSize / 2) },
         ];
-        for (let i = 1; i < numChasers; i++) {
-            for (const corner of corners) {
-                if (grid[corner.y][corner.x] !== C.WALL && !chasers.some(c => c.x === corner.x && c.y === corner.y)) {
-                    chasers.push({ x: corner.x, y: corner.y, dx: 0, dy: 0, type: chaserDefs[i] || 'normal' });
-                    break;
+        
+        // Use level-defined spawn points if available
+        const spawns = level.chaserSpawns || null;
+        
+        // Sort candidates by distance from runner (farthest first)
+        const rx = runner.x, ry = runner.y;
+        candidates.sort((a, b) => {
+            const da = Math.abs(a.x - rx) + Math.abs(a.y - ry);
+            const db = Math.abs(b.x - rx) + Math.abs(b.y - ry);
+            return db - da; // farthest first
+        });
+        
+        for (let i = 0; i < numChasers; i++) {
+            let spawnPos = null;
+            
+            if (spawns && spawns[i]) {
+                // Use level-defined spawn point
+                spawnPos = spawns[i];
+            } else {
+                // Find farthest passable corner that's not occupied
+                for (const c of candidates) {
+                    if (grid[c.y][c.x] !== C.WALL && 
+                        !(c.x === runner.x && c.y === runner.y) &&
+                        !chasers.some(ch => ch.x === c.x && ch.y === c.y)) {
+                        spawnPos = c;
+                        break;
+                    }
                 }
+            }
+            
+            if (spawnPos) {
+                chasers.push({ x: spawnPos.x, y: spawnPos.y, dx: 0, dy: 0, type: chaserDefs[i] || 'normal' });
             }
         }
 
